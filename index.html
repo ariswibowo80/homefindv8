@@ -328,6 +328,14 @@ body{
 .subctr-footer-btns button.danger{color:#c0392b;border-color:#c0392b;}
 .subctr-label{display:inline-flex;align-items:center;gap:3px;font-size:0.6rem;padding:1px 6px;border-radius:20px;background:rgba(75,110,160,0.12);color:#4B6EA0;font-family:'DM Mono',monospace;font-weight:700;}
 
+/* ===== DIRECT ITEMS SECTION (collapsible inside parent container) ===== */
+.ctr-direct-items{margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid rgba(124,99,80,0.1);}
+.cdi-header{display:flex;align-items:center;gap:7px;padding:9px 12px;background:rgba(124,99,80,0.05);cursor:pointer;user-select:none;}
+.cdi-header:active{background:rgba(124,99,80,0.1);}
+.cdi-chevron{font-size:0.75rem;color:var(--muted);transition:transform 0.2s;flex-shrink:0;}
+.cdi-label{font-size:0.75rem;font-weight:600;color:var(--brown);flex:1;}
+.cdi-body{padding:8px;}
+
 /* ===== PURCHASE INFO TAGS ===== */
 .purchase-info{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
 .pi-tag{display:inline-flex;align-items:center;gap:3px;font-size:0.68rem;padding:2px 8px;border-radius:20px;font-family:'DM Mono',monospace;font-weight:600;}
@@ -497,7 +505,7 @@ body{
 <div id="topBar">
   <button id="btnBack" onclick="goBack()">←</button>
   <div id="topBarTitle">Home<span>Find</span></div>
-  <div id="appVersion">v8</div>
+  <div id="appVersion">v9</div>
   <button id="btnSearch" onclick="openSearch()">🔍</button>
   <img id="userAvatar" src="" alt="profile" onclick="toggleUserMenu()">
 </div>
@@ -1071,8 +1079,8 @@ function renderContainerCard(ctr, ctrItems, subCtrs, roomColor){
   const thumbHtml=ctr.photo
     ?`<img class="ctr-thumb" src="${ctr.photo}" alt="${ctr.name}" onclick="event.stopPropagation();openLightboxById('ctr','${ctr.id}')">`
     :`<span class="ctr-emoji">${ctr.icon}</span>`;
-  const directItems=ctrItems.filter(i=>!i._subctr); // items directly in this container
-  const rowsHtml=directItems.map(item=>{
+  const directItems=ctrItems.filter(i=>!i._subctr);
+  const directItemsHtml=directItems.map(item=>{
     const leftEl=item.photo
       ?`<img class="ir-thumb" src="${item.photo}" alt="${item.name}" onclick="openLightboxById('item','${item.id}')">`
       :`<span class="ir-emoji">${item.icon}</span>`;
@@ -1080,11 +1088,27 @@ function renderContainerCard(ctr, ctrItems, subCtrs, roomColor){
       <div class="ir-actions"><button class="ir-btn" onclick="openEditItemSheet('${item.id}')">Edit</button><button class="ir-btn danger" onclick="confirmDeleteItem('${item.id}')">✕</button></div>
     </div>`;
   }).join('');
+
+  // Sub-containers rendered collapsed by default
   const subCtrsHtml=subCtrs.map(sub=>{
     const subItems=items.filter(i=>i.containerId===sub.id);
     return renderSubContainerCard(sub,subItems,c);
   }).join('');
+
+  // Direct items section — collapsible, shown below sub-containers
+  const directItemsSection=directItems.length?`
+    <div class="ctr-direct-items" id="cdi-${ctr.id}">
+      <div class="cdi-header" onclick="toggleDirectItems('${ctr.id}')">
+        <span class="cdi-chevron" id="cdi-chev-${ctr.id}">▾</span>
+        <span class="cdi-label">Items (${directItems.length})</span>
+      </div>
+      <div class="cdi-body" id="cdi-body-${ctr.id}" style="display:none">
+        <div class="ctr-items-list">${directItemsHtml}</div>
+      </div>
+    </div>`:'';
+
   const totalCount=directItems.length+subCtrs.reduce((n,s)=>n+items.filter(i=>i.containerId===s.id).length,0)+subCtrs.length;
+
   return `<div class="container-card" id="ccard-${ctr.id}" style="--ctr-color:${c}">
     <div class="ctr-header" onclick="toggleCtr('${ctr.id}')">
       ${thumbHtml}<div class="ctr-info"><div class="ctr-name">${ctr.name}</div>
@@ -1093,13 +1117,13 @@ function renderContainerCard(ctr, ctrItems, subCtrs, roomColor){
     </div>
     <div class="ctr-body">
       ${ctr.photo?`<img class="ctr-photo-full" src="${ctr.photo}" onclick="openLightboxById('ctr','${ctr.id}')" alt="${ctr.name}">`:''}
-      <div class="ctr-items-list">${rowsHtml}</div>
       ${subCtrsHtml}
+      ${directItemsSection}
+      ${!directItems.length&&!subCtrs.length?'<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;text-align:center">Empty container</div>':''}
       <div style="display:flex;gap:6px;margin-top:8px">
         <button class="ctr-add-btn" onclick="openAddCtrItemSheet('${ctr.id}')" style="flex:1">＋ Add item</button>
         <button class="subctr-add-btn" onclick="openAddSubContainerSheet('${ctr.id}')" style="flex:1">📦 Add sub-container</button>
       </div>
-      ${!directItems.length&&!subCtrs.length?'<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;text-align:center">Empty container</div>':''}
       <div class="ctr-footer-btns">
         <button onclick="openEditContainerSheet('${ctr.id}')">✏️ Edit</button>
         <button class="danger" onclick="confirmDeleteContainer('${ctr.id}')">🗑️ Delete</button>
@@ -1122,7 +1146,7 @@ function renderSubContainerCard(sub, subItems, parentColor){
     </div>`;
   }).join('');
   return `<div class="sub-container-card" id="ccard-${sub.id}" style="--subctr-color:${c}">
-    <div class="subctr-header" onclick="toggleCtr('${sub.id}')">
+    <div class="subctr-header" onclick="toggleSubCtr(event,'${sub.id}')">
       ${thumbHtml}
       <div class="subctr-info">
         <div class="subctr-name">${sub.name}</div>
@@ -1157,7 +1181,32 @@ function renderLooseItemCard(item,roomColor){
     </div>
   </div>`;
 }
-function toggleCtr(id){document.getElementById('ccard-'+id)?.classList.toggle('open');}
+function toggleCtr(id){
+  // Parent container: opens showing sub-containers collapsed
+  const card=document.getElementById('ccard-'+id);
+  if(!card)return;
+  const wasOpen=card.classList.contains('open');
+  card.classList.toggle('open');
+  if(!wasOpen){
+    // Ensure all sub-containers start collapsed when parent opens
+    card.querySelectorAll('.sub-container-card').forEach(sub=>sub.classList.remove('open'));
+  }
+}
+function toggleSubCtr(event, id){
+  // Sub-container toggle — stop propagation so it doesn't trigger parent
+  event.stopPropagation();
+  const card=document.getElementById('ccard-'+id);
+  if(!card)return;
+  card.classList.toggle('open');
+}
+function toggleDirectItems(ctrId){
+  const body=document.getElementById('cdi-body-'+ctrId);
+  const chev=document.getElementById('cdi-chev-'+ctrId);
+  if(!body)return;
+  const isHidden=body.style.display==='none';
+  body.style.display=isHidden?'block':'none';
+  if(chev)chev.style.transform=isHidden?'rotate(180deg)':'';
+}
 
 async function confirmDeleteItem(id){
   if(!confirm('Remove this item?'))return;
