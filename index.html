@@ -505,6 +505,25 @@ body{
 .fp-empty-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;opacity:0.3;}
 .fp-auto-btn{position:absolute;bottom:12px;right:12px;padding:8px 14px;border-radius:20px;border:none;background:var(--dark);color:var(--cream);font-size:0.78rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:5;}
 
+/* ===== FLOOR PLAN ROOM LIST ===== */
+#fpRoomList{background:white;border-bottom:1px solid rgba(124,99,80,0.1);overflow:hidden;max-height:0;transition:max-height 0.3s ease;}
+#fpRoomList.open{max-height:260px;overflow-y:auto;}
+.fp-rl-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:white;border-bottom:1px solid rgba(124,99,80,0.08);cursor:pointer;position:sticky;top:0;z-index:2;}
+.fp-rl-toggle{width:28px;height:28px;border-radius:8px;background:var(--dark);color:white;border:none;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.fp-rl-label{font-size:0.72rem;font-family:'DM Mono',monospace;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;flex:1;}
+.fp-rl-count{font-size:0.68rem;color:var(--muted);font-family:'DM Mono',monospace;}
+.fp-rl-rows{padding:4px 0;}
+.fp-rl-row{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid rgba(124,99,80,0.05);}
+.fp-rl-row:last-child{border-bottom:none;}
+.fp-rl-row:active{background:rgba(124,99,80,0.04);}
+.fp-rl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.fp-rl-icon{font-size:1rem;flex-shrink:0;}
+.fp-rl-name{font-size:0.85rem;font-weight:600;color:var(--dark);flex:1;}
+.fp-rl-meta{font-size:0.68rem;color:var(--muted);font-family:'DM Mono',monospace;}
+.fp-rl-arrow{font-size:0.75rem;color:var(--muted);}
+.fp-rl-toggle-wrap{display:flex;align-items:center;justify-content:center;padding:6px 0;border-bottom:1px solid rgba(124,99,80,0.08);background:rgba(124,99,80,0.02);cursor:pointer;gap:6px;}
+.fp-rl-toggle-label{font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace;}
+
 /* ===== IN-APP CAMERA ===== */
 #cameraModal{display:none;position:fixed;inset:0;z-index:300;background:#000;flex-direction:column;align-items:center;justify-content:center;}
 #cameraModal.open{display:flex;}
@@ -558,7 +577,7 @@ body{
 <div id="topBar">
   <button id="btnBack" onclick="goBack()">←</button>
   <div id="topBarTitle">Home<span>Find</span></div>
-  <div id="appVersion">v12</div>
+  <div id="appVersion">v13</div>
   <button id="btnSearch" onclick="openSearch()">🔍</button>
   <img id="userAvatar" src="" alt="profile" onclick="toggleUserMenu()">
 </div>
@@ -592,6 +611,7 @@ body{
   <div class="page hidden" id="roomDetailPage"><div id="roomDetailContent"></div></div>
   <div class="page hidden" id="floorPlanPage">
     <div class="fp-floor-tabs" id="fpFloorTabs"></div>
+    <div id="fpRoomList"></div>
     <div id="fpCanvas"></div>
   </div>
   <div class="page hidden" id="aboutPage"><div id="aboutContent"></div></div>
@@ -1529,12 +1549,44 @@ async function confirmDeleteContainer(id){
 // ── Floor plan ─────────────────────────────────────────
 function renderFloorPlan(){
   const usedFloors=getUsedFloors();
-  if(!usedFloors.length){document.getElementById('fpFloorTabs').innerHTML='';document.getElementById('fpCanvas').innerHTML=`<div class="fp-empty-msg"><span style="font-size:3rem">🏠</span><p>No rooms yet.</p></div>`;return;}
+  if(!usedFloors.length){
+    document.getElementById('fpFloorTabs').innerHTML='';
+    document.getElementById('fpRoomList').innerHTML='';
+    document.getElementById('fpCanvas').innerHTML=`<div class="fp-empty-msg"><span style="font-size:3rem">🏠</span><p>No rooms yet.</p></div>`;
+    return;
+  }
   if(!usedFloors.find(f=>f.id===currentFpFloor))currentFpFloor=usedFloors[0].id;
   document.getElementById('fpFloorTabs').innerHTML=usedFloors.map(f=>`<button class="fp-tab${f.id===currentFpFloor?' active':''}" onclick="setFpFloor('${f.id}')">${f.emoji} ${f.label}</button>`).join('');
+  buildFpRoomList();
   buildFpCanvas();
 }
-function setFpFloor(id){currentFpFloor=id;document.querySelectorAll('.fp-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.fp-tab').forEach(t=>{if(t.getAttribute('onclick')===`setFpFloor('${id}')`)t.classList.add('active');});buildFpCanvas();}
+function buildFpRoomList(){
+  const flRooms=rooms.filter(r=>r.floor===currentFpFloor);
+  const isOpen=document.getElementById('fpRoomList').classList.contains('open');
+  const rowsHtml=flRooms.map(room=>{
+    const rc=containers.filter(c=>c.roomId===room.id).length;
+    const ri=items.filter(i=>i.roomId===room.id).length;
+    return `<div class="fp-rl-row" onclick="openRoomDetail('${room.id}')">
+      <div class="fp-rl-dot" style="background:${room.color}"></div>
+      <span class="fp-rl-icon">${room.icon}</span>
+      <span class="fp-rl-name">${room.name}</span>
+      <span class="fp-rl-meta">${rc}c · ${ri}i</span>
+      <span class="fp-rl-arrow">›</span>
+    </div>`;
+  }).join('');
+  document.getElementById('fpRoomList').innerHTML=`
+    <div class="fp-rl-toggle-wrap" onclick="toggleFpRoomList()">
+      <span class="fp-rl-toggle-label">🏠 ROOMS ON THIS FLOOR (${flRooms.length})</span>
+      <span style="font-size:0.7rem;color:var(--muted)">${isOpen?'▲':'▼'}</span>
+    </div>
+    <div class="fp-rl-rows">${rowsHtml}</div>`;
+}
+function toggleFpRoomList(){
+  const el=document.getElementById('fpRoomList');
+  el.classList.toggle('open');
+  buildFpRoomList();
+}
+function setFpFloor(id){currentFpFloor=id;document.querySelectorAll('.fp-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.fp-tab').forEach(t=>{if(t.getAttribute('onclick')===`setFpFloor('${id}')`)t.classList.add('active');});buildFpRoomList();buildFpCanvas();}
 function buildFpCanvas(){
   const canvas=document.getElementById('fpCanvas');canvas.innerHTML='';
   const flRooms=rooms.filter(r=>r.floor===currentFpFloor);
