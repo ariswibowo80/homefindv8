@@ -348,6 +348,37 @@ body{
 .price-row input{width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Sans',sans-serif;font-size:0.95rem;color:var(--dark);outline:none;-webkit-appearance:none;appearance:none;box-sizing:border-box;}
 .price-row input:focus{border-color:var(--accent);}
 
+/* ===== DASHBOARD ===== */
+.dash-hero{background:var(--dark);padding:24px 16px 20px;}
+.dash-hero-title{font-family:'DM Serif Display',serif;font-size:1.4rem;color:#F7F3EE;margin-bottom:4px;}
+.dash-hero-sub{font-size:0.78rem;color:rgba(237,230,218,0.45);font-family:'DM Mono',monospace;}
+.dash-stats{display:flex;gap:10px;padding:16px 16px 0;}
+.dash-stat{flex:1;background:white;border-radius:14px;padding:14px 10px;text-align:center;box-shadow:var(--shadow);}
+.dash-stat-num{font-family:'DM Serif Display',serif;font-size:1.8rem;color:var(--dark);line-height:1;}
+.dash-stat-label{font-size:0.62rem;color:var(--muted);margin-top:4px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;}
+.dash-section{padding:20px 16px 0;}
+.dash-section-title{font-size:0.62rem;font-family:'DM Mono',monospace;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.dash-card{background:white;border-radius:16px;padding:20px;box-shadow:var(--shadow);margin-bottom:14px;}
+.dash-pie-wrap{display:flex;align-items:center;gap:20px;}
+.dash-pie-svg{flex-shrink:0;}
+.dash-legend{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0;}
+.dash-legend-row{display:flex;align-items:center;gap:8px;}
+.dash-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dash-legend-label{font-size:0.78rem;color:var(--dark);font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dash-legend-val{font-size:0.7rem;color:var(--muted);font-family:'DM Mono',monospace;flex-shrink:0;}
+.dash-cat-list{display:flex;flex-direction:column;gap:1px;}
+.dash-cat-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(124,99,80,0.07);}
+.dash-cat-row:last-child{border-bottom:none;}
+.dash-cat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+.dash-cat-info{flex:1;min-width:0;}
+.dash-cat-name{font-size:0.82rem;font-weight:700;color:var(--dark);}
+.dash-cat-count{font-size:0.7rem;color:var(--muted);margin-top:1px;}
+.dash-cat-price{font-size:0.78rem;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent2);flex-shrink:0;text-align:right;}
+.dash-bar-wrap{margin-top:5px;height:4px;background:rgba(124,99,80,0.1);border-radius:4px;overflow:hidden;}
+.dash-bar{height:100%;border-radius:4px;transition:width 0.4s ease;}
+.dash-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:0.85rem;}
+.dash-footer{height:32px;}
+
 /* ===== ITEM DETAIL PAGE ===== */
 .id-hero{position:relative;background:var(--dark);min-height:220px;display:flex;align-items:flex-end;}
 .id-hero-photo{width:100%;height:260px;object-fit:cover;display:block;opacity:0.7;}
@@ -527,7 +558,7 @@ body{
 <div id="topBar">
   <button id="btnBack" onclick="goBack()">←</button>
   <div id="topBarTitle">Home<span>Find</span></div>
-  <div id="appVersion">v11</div>
+  <div id="appVersion">v12</div>
   <button id="btnSearch" onclick="openSearch()">🔍</button>
   <img id="userAvatar" src="" alt="profile" onclick="toggleUserMenu()">
 </div>
@@ -565,6 +596,7 @@ body{
   </div>
   <div class="page hidden" id="aboutPage"><div id="aboutContent"></div></div>
   <div class="page hidden" id="itemDetailPage"><div id="itemDetailContent"></div></div>
+  <div class="page hidden" id="dashboardPage"><div id="dashboardContent"></div></div>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -577,6 +609,9 @@ body{
   </button>
   <button class="nav-item" data-page="floorPlan" onclick="switchPage('floorPlan')">
     <span class="ni-icon">🗺️</span><span class="ni-label">Floor Plan</span>
+  </button>
+  <button class="nav-item" data-page="dashboard" onclick="switchPage('dashboard')">
+    <span class="ni-icon">📊</span><span class="ni-label">Dashboard</span>
   </button>
   <button class="nav-item" data-page="about" onclick="switchPage('about')">
     <span class="ni-icon">ℹ️</span><span class="ni-label">About</span>
@@ -666,6 +701,19 @@ const CTR_COLORS=['#5E8C6A','#4A9EBF','#B87BB2','#D4A843','#C8773A','#7B68EE','#
 const ROOM_EMOJIS=['🛋️','🛏️','🍳','🚿','🏢','🚗','📚','🎮','🌿','🧹','👔','🏋️','🍷','🎨','🖥️','🧺'];
 const CTR_EMOJIS=['🗃️','📦','🧺','👜','🧳','🗄️','📁','🪣','🛍️','💼','🎒','🧰','🗑️','📫'];
 const ITEM_EMOJIS=['🔑','📱','💻','🎮','📚','👔','👟','🧴','💊','🔧','📝','💳','🧸','🔋','🕶️','🧲','📷','🎸','🧦','🪥','💡','🍽️','🧣','⌚','🖥️','📦','✂️','📘','🪴','🎭'];
+const CATEGORIES=[
+  {id:'electronics', label:'Electronics',    emoji:'📱', color:'#4B6EA0'},
+  {id:'clothing',    label:'Clothing',       emoji:'👔', color:'#8B5E8B'},
+  {id:'furniture',   label:'Furniture',      emoji:'🪑', color:'#A0522D'},
+  {id:'kitchen',     label:'Kitchen',        emoji:'🍽️', color:'#C8773A'},
+  {id:'books',       label:'Books & Media',  emoji:'📚', color:'#5E8C6A'},
+  {id:'tools',       label:'Tools',          emoji:'🔧', color:'#6B7280'},
+  {id:'health',      label:'Health & Beauty',emoji:'💊', color:'#E87070'},
+  {id:'sports',      label:'Sports & Hobby', emoji:'⚽', color:'#4CAF50'},
+  {id:'documents',   label:'Documents',      emoji:'📝', color:'#F59E0B'},
+  {id:'toys',        label:'Toys & Games',   emoji:'🧸', color:'#F472B6'},
+  {id:'other',       label:'Other',          emoji:'📦', color:'#9CA3AF'},
+];
 const FLOORS=[
   {id:'b',label:'Basement',short:'B',color:'#7C6350',emoji:'⬇️'},
   {id:'1',label:'1st Floor',short:'1F',color:'#C8773A',emoji:'🏠'},
@@ -677,7 +725,7 @@ const FLOORS=[
 // ── Data ──────────────────────────────────────────────
 let rooms=[], containers=[], items=[];
 let currentPage='overview', prevPage=null, currentRoomId=null, currentItemId=null, currentFpFloor='1';
-const PAGES={overview:'overviewPage',items:'itemsPage',roomDetail:'roomDetailPage',floorPlan:'floorPlanPage',about:'aboutPage',itemDetail:'itemDetailPage'};
+const PAGES={overview:'overviewPage',items:'itemsPage',roomDetail:'roomDetailPage',floorPlan:'floorPlanPage',about:'aboutPage',itemDetail:'itemDetailPage',dashboard:'dashboardPage'};
 
 // ── Auth UI ───────────────────────────────────────────
 function showLogin(){
@@ -906,6 +954,7 @@ function updateTopBar(){
   else if(currentPage==='items')t='All Rooms';
   else if(currentPage==='floorPlan')t='Floor Plan';
   else if(currentPage==='about')t='About';
+  else if(currentPage==='dashboard')t='Dashboard';
   document.getElementById('topBarTitle').innerHTML=t;
 }
 function renderPage(page){
@@ -915,6 +964,7 @@ function renderPage(page){
   else if(page==='floorPlan')renderFloorPlan();
   else if(page==='about')renderAboutPage();
   else if(page==='itemDetail')renderItemDetailPage(currentItemId);
+  else if(page==='dashboard')renderDashboard();
 }
 function onFabTap(){
   if(currentPage==='overview'||currentPage==='items'||currentPage==='floorPlan') openAddRoomSheet();
@@ -926,6 +976,7 @@ function refresh(){
   else if(currentPage==='floorPlan')renderFloorPlan();
   else if(currentPage==='roomDetail')renderRoomDetail(currentRoomId);
   else if(currentPage==='itemDetail')renderItemDetailPage(currentItemId);
+  else if(currentPage==='dashboard')renderDashboard();
 }
 
 // ── Item detail page ───────────────────────────────────
@@ -958,6 +1009,7 @@ function renderItemDetailPage(itemId){
 
   // Info rows
   let rowsHtml='';
+  if(item.category){const cat=CATEGORIES.find(c=>c.id===item.category);if(cat)rowsHtml+=infoRow(cat.emoji,`${cat.color}22`,'Category',cat.label);}
   if(item.location)rowsHtml+=infoRow('📍','rgba(200,119,58,0.1)','Location',item.location);
   if(ctr){
     const locLabel=parentCtr?`${parentCtr.icon} ${parentCtr.name} › ${ctr.icon} ${ctr.name}`:`${ctr.icon} ${ctr.name}`;
@@ -1007,6 +1059,131 @@ async function confirmDeleteItemFromDetail(itemId){
   if(roomId){currentRoomId=roomId;switchPage('roomDetail',{back:true});}
   else switchPage('overview',{back:true});
   snack('Item deleted');
+}
+
+// ── Dashboard ──────────────────────────────────────────
+function renderDashboard(){
+  const totalItems=items.length;
+  const totalRooms=rooms.length;
+  const pricedItems=items.filter(i=>i.price&&Number(i.price)>0);
+  const totalValue=pricedItems.reduce((s,i)=>s+Number(i.price),0);
+
+  // Group by category
+  const catMap={};
+  items.forEach(i=>{
+    const catId=i.category||'other';
+    if(!catMap[catId])catMap[catId]={count:0,value:0,currency:'IDR'};
+    catMap[catId].count++;
+    if(i.price&&Number(i.price)>0){
+      catMap[catId].value+=Number(i.price);
+      catMap[catId].currency=i.currency||'IDR';
+    }
+  });
+
+  // Sort by count desc
+  const catRows=Object.entries(catMap)
+    .map(([id,data])=>({id,data,cat:CATEGORIES.find(c=>c.id===id)||{id:'other',label:'Other',emoji:'📦',color:'#9CA3AF'}}))
+    .sort((a,b)=>b.data.count-a.data.count);
+
+  const maxCount=catRows[0]?.data.count||1;
+
+  // Pie chart by item count
+  const pieHtml=catRows.length?buildPieChart(catRows,'count',totalItems):'';
+  const priceHtml=pricedItems.length?buildPieChart(catRows.filter(r=>r.data.value>0),'value',totalValue):'';
+
+  const catListHtml=catRows.map(({cat,data})=>`
+    <div class="dash-cat-row">
+      <div class="dash-cat-icon" style="background:${cat.color}22">${cat.emoji}</div>
+      <div class="dash-cat-info">
+        <div class="dash-cat-name">${cat.label}</div>
+        <div class="dash-cat-count">${data.count} item${data.count!==1?'s':''}</div>
+        <div class="dash-bar-wrap"><div class="dash-bar" style="width:${Math.round(data.count/maxCount*100)}%;background:${cat.color}"></div></div>
+      </div>
+      <div class="dash-cat-price">${data.value?formatPrice(data.value,data.currency):'-'}</div>
+    </div>`).join('');
+
+  document.getElementById('dashboardContent').innerHTML=`
+    <div class="dash-hero">
+      <div class="dash-hero-title">📊 Summary</div>
+      <div class="dash-hero-sub">Overview of your home inventory</div>
+    </div>
+    <div class="dash-stats">
+      <div class="dash-stat"><div class="dash-stat-num">${totalRooms}</div><div class="dash-stat-label">Rooms</div></div>
+      <div class="dash-stat"><div class="dash-stat-num">${containers.length}</div><div class="dash-stat-label">Containers</div></div>
+      <div class="dash-stat"><div class="dash-stat-num">${totalItems}</div><div class="dash-stat-label">Items</div></div>
+    </div>
+
+    ${totalValue?`<div class="dash-section">
+      <div class="dash-section-title">Total Value Tracked</div>
+      <div class="dash-card" style="text-align:center;padding:16px 20px">
+        <div style="font-family:'DM Serif Display',serif;font-size:1.6rem;color:var(--accent2)">${formatPrice(totalValue,'IDR')}</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${pricedItems.length} of ${totalItems} items have price</div>
+      </div>
+    </div>`:''}
+
+    ${catRows.length?`
+    <div class="dash-section">
+      <div class="dash-section-title">Items by Category</div>
+      <div class="dash-card">
+        <div class="dash-pie-wrap">
+          ${pieHtml}
+          <div class="dash-legend">${catRows.slice(0,5).map(({cat,data})=>`
+            <div class="dash-legend-row">
+              <div class="dash-legend-dot" style="background:${cat.color}"></div>
+              <div class="dash-legend-label">${cat.emoji} ${cat.label}</div>
+              <div class="dash-legend-val">${data.count}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${priceHtml?`<div class="dash-section">
+      <div class="dash-section-title">Value by Category</div>
+      <div class="dash-card">
+        <div class="dash-pie-wrap">
+          ${priceHtml}
+          <div class="dash-legend">${catRows.filter(r=>r.data.value>0).slice(0,5).map(({cat,data})=>`
+            <div class="dash-legend-row">
+              <div class="dash-legend-dot" style="background:${cat.color}"></div>
+              <div class="dash-legend-label">${cat.emoji} ${cat.label}</div>
+              <div class="dash-legend-val">${formatPrice(data.value,data.currency)}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>`:''}
+
+    <div class="dash-section">
+      <div class="dash-section-title">Category Breakdown</div>
+      <div class="dash-card">
+        <div class="dash-cat-list">${catListHtml}</div>
+      </div>
+    </div>`
+    :`<div class="dash-empty">📦 Add some items to see your dashboard</div>`}
+    <div class="dash-footer"></div>`;
+}
+
+function buildPieChart(catRows, field, total){
+  if(!total)return '';
+  const size=140, cx=70, cy=70, r=52, inner=28;
+  let angle=-Math.PI/2;
+  let slices='';
+  catRows.forEach(({cat,data})=>{
+    const val=field==='count'?data.count:data.value;
+    if(!val)return;
+    const sweep=(val/total)*Math.PI*2;
+    const x1=cx+r*Math.cos(angle), y1=cy+r*Math.sin(angle);
+    const x2=cx+r*Math.cos(angle+sweep), y2=cy+r*Math.sin(angle+sweep);
+    const xi1=cx+inner*Math.cos(angle), yi1=cy+inner*Math.sin(angle);
+    const xi2=cx+inner*Math.cos(angle+sweep), yi2=cy+inner*Math.sin(angle+sweep);
+    const large=sweep>Math.PI?1:0;
+    slices+=`<path d="M${xi1},${yi1} L${x1},${y1} A${r},${r},0,${large},1,${x2},${y2} L${xi2},${yi2} A${inner},${inner},0,${large},0,${xi1},${yi1}Z" fill="${cat.color}" opacity="0.9"/>`;
+    angle+=sweep;
+  });
+  const centerLabel=field==='count'?`<text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="18" font-family="DM Serif Display,serif" fill="#2A1F17">${total}</text><text x="${cx}" y="${cy+12}" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" fill="#9CA3AF">ITEMS</text>`
+    :`<text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="8" font-family="DM Mono,monospace" fill="#5E8C6A">VALUE</text>`;
+  return `<svg class="dash-pie-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${slices}${centerLabel}</svg>`;
 }
 
 // ── About page ─────────────────────────────────────────
@@ -1072,7 +1249,11 @@ function formatPrice(price,currency){
 }
 function purchaseFieldsHtml(item={}){
   const curOpts=CURRENCIES.map(c=>`<option value="${c}"${(item.currency||'IDR')===c?' selected':''}>${c}</option>`).join('');
-  return `<div class="field"><label>Currency</label>
+  const catOpts=`<option value="">— No category —</option>`+CATEGORIES.map(c=>`<option value="${c.id}"${item.category===c.id?' selected':''}>${c.emoji} ${c.label}</option>`).join('');
+  return `<div class="field"><label>Category (optional)</label>
+    <select id="sCategory" style="width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Sans',sans-serif;font-size:0.92rem;color:var(--dark);outline:none;-webkit-appearance:none;appearance:none;">${catOpts}</select>
+  </div>
+  <div class="field"><label>Currency</label>
     <div class="price-row">
       <select id="sCurrency">${curOpts}</select>
       <input type="number" id="sPrice" placeholder="Price (optional, e.g. 250000)" value="${item.price||''}" min="0" inputmode="numeric">
@@ -1087,6 +1268,7 @@ function purchaseFieldsHtml(item={}){
 }
 function readPurchaseFields(){
   return {
+    category:document.getElementById('sCategory')?.value||'',
     price:document.getElementById('sPrice')?.value||'',
     currency:document.getElementById('sCurrency')?.value||'IDR',
     boughtFrom:document.getElementById('sBoughtFrom')?.value.trim()||'',
@@ -1094,8 +1276,9 @@ function readPurchaseFields(){
   };
 }
 function purchaseInfoHtml(item){
-  if(!item.price&&!item.boughtFrom&&!item.purchaseDate)return '';
+  if(!item.price&&!item.boughtFrom&&!item.purchaseDate&&!item.category)return '';
   let tags='';
+  if(item.category){const cat=CATEGORIES.find(c=>c.id===item.category);if(cat)tags+=`<span class="pi-tag" style="background:${cat.color}22;color:${cat.color}">${cat.emoji} ${cat.label}</span>`;}
   if(item.price)tags+=`<span class="pi-tag price">💰 ${formatPrice(item.price,item.currency)}</span>`;
   if(item.boughtFrom)tags+=`<span class="pi-tag shop">🛒 ${item.boughtFrom}</span>`;
   if(item.purchaseDate)tags+=`<span class="pi-tag date">📅 ${item.purchaseDate}</span>`;
@@ -1706,6 +1889,7 @@ async function doUpdateItem(itemId){
   const purchase=readPurchaseFields();
   item.price=purchase.price;item.currency=purchase.currency;
   item.boughtFrom=purchase.boughtFrom;item.purchaseDate=purchase.purchaseDate;
+  item.category=purchase.category;
   // Upload new photo if changed
   if(sheetPhotoData&&sheetPhotoData!==item.photo){
     item.photo=resolvePhoto(sheetPhotoData);
