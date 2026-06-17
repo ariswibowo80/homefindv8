@@ -344,7 +344,8 @@ body{
 .pi-tag.date{background:rgba(75,110,160,0.10);color:#4B6EA0;}
 .price-row{display:flex;gap:8px;}
 .price-row select{width:88px;flex-shrink:0;padding:11px 6px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--dark);outline:none;-webkit-appearance:none;appearance:none;text-align:center;}
-.price-row input{flex:1;}
+.price-row input{flex:1;width:auto;min-width:0;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Sans',sans-serif;font-size:0.95rem;color:var(--dark);outline:none;-webkit-appearance:none;appearance:none;}
+.price-row input:focus{border-color:var(--accent);}
 
 /* ===== ABOUT PAGE ===== */
 .about-hero{background:var(--dark);padding:48px 24px 36px;display:flex;flex-direction:column;align-items:center;text-align:center;}
@@ -505,7 +506,7 @@ body{
 <div id="topBar">
   <button id="btnBack" onclick="goBack()">←</button>
   <div id="topBarTitle">Home<span>Find</span></div>
-  <div id="appVersion">v9</div>
+  <div id="appVersion">v10</div>
   <button id="btnSearch" onclick="openSearch()">🔍</button>
   <img id="userAvatar" src="" alt="profile" onclick="toggleUserMenu()">
 </div>
@@ -1635,20 +1636,76 @@ document.getElementById('searchInput').addEventListener('input',e=>{
   const results=[];
   items.filter(i=>i.name.toLowerCase().includes(q)||(i.notes&&i.notes.toLowerCase().includes(q))||(i.location&&i.location.toLowerCase().includes(q))).forEach(i=>{
     const room=rooms.find(r=>r.id===i.roomId);const ctr=i.containerId?containers.find(c=>c.id===i.containerId):null;const fl=room?FLOORS.find(f=>f.id===room.floor):null;
-    results.push({icon:i.icon,name:i.name,sub:(ctr?ctr.icon+' '+ctr.name+' · ':'')+( room?room.icon+' '+room.name:'')+(fl?' · '+fl.short:''),color:room?.color||'#999',roomId:i.roomId});
+    results.push({type:'item',id:i.id,icon:i.icon,name:i.name,sub:(ctr?ctr.icon+' '+ctr.name+' · ':'')+( room?room.icon+' '+room.name:'')+(fl?' · '+fl.short:''),color:room?.color||'#999',roomId:i.roomId,containerId:i.containerId});
   });
   containers.filter(c=>c.name.toLowerCase().includes(q)).forEach(c=>{
     const room=rooms.find(r=>r.id===c.roomId);const fl=room?FLOORS.find(f=>f.id===room.floor):null;const cnt=items.filter(i=>i.containerId===c.id).length;
-    results.push({icon:c.icon,name:c.name,sub:`${cnt} items${room?' · '+room.icon+' '+room.name:''}${fl?' · '+fl.short:''}`,color:c.color||room?.color||'#999',roomId:c.roomId});
+    results.push({type:'container',id:c.id,icon:c.icon,name:c.name,sub:`${cnt} items${room?' · '+room.icon+' '+room.name:''}${fl?' · '+fl.short:''}`,color:c.color||room?.color||'#999',roomId:c.roomId,containerId:null});
   });
   rooms.filter(r=>r.name.toLowerCase().includes(q)).forEach(r=>{
     const fl=FLOORS.find(f=>f.id===r.floor)||FLOORS[1];
-    results.push({icon:r.icon,name:r.name,sub:fl.emoji+' '+fl.label,color:r.color,roomId:r.id});
+    results.push({type:'room',id:r.id,icon:r.icon,name:r.name,sub:fl.emoji+' '+fl.label,color:r.color,roomId:r.id,containerId:null});
   });
   document.getElementById('searchResults').innerHTML=results.length
-    ?results.map(r=>`<div class="sri" onclick="gotoRoom('${r.roomId}')"><div class="sri-dot" style="background:${r.color}"></div><div><div class="sri-name">${r.icon} ${r.name}</div><div class="sri-sub">${r.sub}</div></div></div>`).join('')
+    ?results.map(r=>`<div class="sri" onclick="gotoResult('${r.roomId}','${r.type}','${r.id}','${r.containerId||''}')">
+        <div class="sri-dot" style="background:${r.color}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="sri-name">${r.icon} ${r.name}</div>
+          <div class="sri-sub">${r.type==='item'?'📦 Item · ':r.type==='container'?'🗃️ Container · ':'🏠 Room · '}${r.sub}</div>
+        </div>
+        <span style="font-size:0.7rem;color:var(--muted);padding-left:6px">›</span>
+      </div>`).join('')
     :`<div class="sri-empty">No results for "${e.target.value}"</div>`;
 });
+
+function gotoResult(roomId, type, id, containerId){
+  closeSearch();
+  // Navigate to the room first
+  openRoomDetail(roomId);
+  // After render, open the right container and scroll to the element
+  setTimeout(()=>{
+    if(type==='room') return; // just show the room
+    // If item is inside a container, open the container first
+    if(type==='item' && containerId){
+      // Check if it's inside a sub-container (parentId set)
+      const ctr=containers.find(c=>c.id===containerId);
+      if(ctr?.parentId){
+        // Open parent container first, then the sub-container
+        document.getElementById('ccard-'+ctr.parentId)?.classList.add('open');
+        setTimeout(()=>{
+          document.getElementById('ccard-'+containerId)?.classList.add('open');
+          scrollAndHighlight('ccard-'+containerId);
+        },120);
+      } else {
+        document.getElementById('ccard-'+containerId)?.classList.add('open');
+        // Also expand direct items section if needed
+        const diBody=document.getElementById('cdi-body-'+containerId);
+        if(diBody) diBody.style.display='block';
+        scrollAndHighlight('ccard-'+containerId);
+      }
+    } else if(type==='container'){
+      const ctr=containers.find(c=>c.id===id);
+      if(ctr?.parentId){
+        document.getElementById('ccard-'+ctr.parentId)?.classList.add('open');
+        setTimeout(()=>{
+          document.getElementById('ccard-'+id)?.classList.add('open');
+          scrollAndHighlight('ccard-'+id);
+        },120);
+      } else {
+        document.getElementById('ccard-'+id)?.classList.add('open');
+        scrollAndHighlight('ccard-'+id);
+      }
+    }
+  },220);
+}
+function scrollAndHighlight(elId){
+  const el=document.getElementById(elId);
+  if(!el)return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.style.outline='2.5px solid var(--accent)';
+  el.style.outlineOffset='2px';
+  setTimeout(()=>{el.style.outline='';el.style.outlineOffset='';},1800);
+}
 function gotoRoom(roomId){closeSearch();openRoomDetail(roomId);}
 
 // ── Lightbox ───────────────────────────────────────────
