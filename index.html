@@ -347,6 +347,26 @@ body{
 .price-row input{flex:1;width:auto;min-width:0;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Sans',sans-serif;font-size:0.95rem;color:var(--dark);outline:none;-webkit-appearance:none;appearance:none;}
 .price-row input:focus{border-color:var(--accent);}
 
+/* ===== ITEM DETAIL PAGE ===== */
+.id-hero{position:relative;background:var(--dark);min-height:220px;display:flex;align-items:flex-end;}
+.id-hero-photo{width:100%;height:260px;object-fit:cover;display:block;opacity:0.7;}
+.id-hero-placeholder{width:100%;height:220px;display:flex;align-items:center;justify-content:center;font-size:5rem;}
+.id-hero-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(42,31,23,0.85) 0%,transparent 55%);}
+.id-hero-info{position:absolute;bottom:0;left:0;right:0;padding:18px 18px 20px;}
+.id-hero-name{font-family:'DM Serif Display',serif;font-size:1.5rem;color:#F7F3EE;line-height:1.2;}
+.id-hero-breadcrumb{font-size:0.72rem;color:rgba(237,230,218,0.55);margin-top:5px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.id-hero-breadcrumb span{display:flex;align-items:center;gap:3px;}
+.id-body{padding:16px;}
+.id-section{background:white;border-radius:16px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:14px;}
+.id-row{display:flex;align-items:flex-start;gap:14px;padding:13px 16px;border-bottom:1px solid rgba(124,99,80,0.07);}
+.id-row:last-child{border-bottom:none;}
+.id-row-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;margin-top:1px;}
+.id-row-label{font-size:0.65rem;font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.id-row-value{font-size:0.88rem;font-weight:600;color:var(--dark);line-height:1.4;}
+.id-actions{display:flex;gap:10px;padding:16px 16px 32px;}
+.id-btn-edit{flex:2;padding:13px;background:var(--accent);color:white;border:none;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;}
+.id-btn-delete{flex:1;padding:13px;background:transparent;border:1.5px solid rgba(192,57,43,0.35);border-radius:50px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:#c0392b;cursor:pointer;}
+
 /* ===== ABOUT PAGE ===== */
 .about-hero{background:var(--dark);padding:48px 24px 36px;display:flex;flex-direction:column;align-items:center;text-align:center;}
 .about-app-icon{font-size:3.5rem;margin-bottom:12px;}
@@ -506,7 +526,7 @@ body{
 <div id="topBar">
   <button id="btnBack" onclick="goBack()">←</button>
   <div id="topBarTitle">Home<span>Find</span></div>
-  <div id="appVersion">v10</div>
+  <div id="appVersion">v11</div>
   <button id="btnSearch" onclick="openSearch()">🔍</button>
   <img id="userAvatar" src="" alt="profile" onclick="toggleUserMenu()">
 </div>
@@ -543,6 +563,7 @@ body{
     <div id="fpCanvas"></div>
   </div>
   <div class="page hidden" id="aboutPage"><div id="aboutContent"></div></div>
+  <div class="page hidden" id="itemDetailPage"><div id="itemDetailContent"></div></div>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -654,8 +675,8 @@ const FLOORS=[
 
 // ── Data ──────────────────────────────────────────────
 let rooms=[], containers=[], items=[];
-let currentPage='overview', prevPage=null, currentRoomId=null, currentFpFloor='1';
-const PAGES={overview:'overviewPage',items:'itemsPage',roomDetail:'roomDetailPage',floorPlan:'floorPlanPage',about:'aboutPage'};
+let currentPage='overview', prevPage=null, currentRoomId=null, currentItemId=null, currentFpFloor='1';
+const PAGES={overview:'overviewPage',items:'itemsPage',roomDetail:'roomDetailPage',floorPlan:'floorPlanPage',about:'aboutPage',itemDetail:'itemDetailPage'};
 
 // ── Auth UI ───────────────────────────────────────────
 function showLogin(){
@@ -867,17 +888,20 @@ function switchPage(page, opts={}){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   const nb=document.querySelector(`.nav-item[data-page="${page}"]`);
   if(nb)nb.classList.add('active');
-  document.getElementById('btnBack').classList.toggle('show',page==='roomDetail');
+  document.getElementById('btnBack').classList.toggle('show',page==='roomDetail'||page==='itemDetail');
   updateTopBar();
   renderPage(page,opts);
 }
 function goBack(){
-  if(currentPage==='roomDetail')
+  if(currentPage==='itemDetail')
+    switchPage(prevPage||'overview',{back:true});
+  else if(currentPage==='roomDetail')
     switchPage(prevPage==='items'||prevPage==='overview'?prevPage:'items',{back:true});
 }
 function updateTopBar(){
   let t='Home<span style="color:var(--accent)">Find</span>';
   if(currentPage==='roomDetail'&&currentRoomId){const r=rooms.find(x=>x.id===currentRoomId);if(r)t=r.icon+' '+r.name;}
+  else if(currentPage==='itemDetail'&&currentItemId){const i=items.find(x=>x.id===currentItemId);if(i)t=i.icon+' '+i.name;}
   else if(currentPage==='items')t='All Rooms';
   else if(currentPage==='floorPlan')t='Floor Plan';
   else if(currentPage==='about')t='About';
@@ -889,17 +913,99 @@ function renderPage(page){
   else if(page==='roomDetail')renderRoomDetail(currentRoomId);
   else if(page==='floorPlan')renderFloorPlan();
   else if(page==='about')renderAboutPage();
+  else if(page==='itemDetail')renderItemDetailPage(currentItemId);
 }
 function onFabTap(){
   if(currentPage==='overview'||currentPage==='items'||currentPage==='floorPlan') openAddRoomSheet();
   else if(currentPage==='roomDetail'&&currentRoomId) openAddThingSheet(currentRoomId,'item');
-  // no fab action on about page
 }
 function refresh(){
   if(currentPage==='overview')renderOverview();
   else if(currentPage==='items')renderItemsPage();
   else if(currentPage==='floorPlan')renderFloorPlan();
   else if(currentPage==='roomDetail')renderRoomDetail(currentRoomId);
+  else if(currentPage==='itemDetail')renderItemDetailPage(currentItemId);
+}
+
+// ── Item detail page ───────────────────────────────────
+function openItemDetail(itemId){
+  currentItemId=itemId;
+  switchPage('itemDetail');
+}
+function renderItemDetailPage(itemId){
+  const item=items.find(i=>i.id===itemId);
+  if(!item){document.getElementById('itemDetailContent').innerHTML='';return;}
+  const room=rooms.find(r=>r.id===item.roomId);
+  const ctr=item.containerId?containers.find(c=>c.id===item.containerId):null;
+  const parentCtr=ctr?.parentId?containers.find(c=>c.id===ctr.parentId):null;
+  const fl=room?FLOORS.find(f=>f.id===room.floor)||FLOORS[1]:null;
+
+  // Breadcrumb: Floor > Room > Container > Sub-container
+  const crumbs=[];
+  if(fl)crumbs.push(`${fl.emoji} ${fl.short}`);
+  if(room)crumbs.push(`${room.icon} ${room.name}`);
+  if(parentCtr)crumbs.push(`${parentCtr.icon} ${parentCtr.name}`);
+  if(ctr)crumbs.push(`${ctr.icon} ${ctr.name}`);
+  const breadcrumbHtml=crumbs.map((c,i)=>
+    `<span>${c}</span>${i<crumbs.length-1?'<span style="opacity:0.4">›</span>':''}`
+  ).join('');
+
+  // Hero section
+  const heroHtml=item.photo
+    ?`<img class="id-hero-photo" src="${item.photo}" alt="${item.name}" onclick="openLightboxById('item','${item.id}')">`
+    :`<div class="id-hero-placeholder">${item.icon}</div>`;
+
+  // Info rows
+  let rowsHtml='';
+  if(item.location)rowsHtml+=infoRow('📍','rgba(200,119,58,0.1)','Location',item.location);
+  if(ctr){
+    const locLabel=parentCtr?`${parentCtr.icon} ${parentCtr.name} › ${ctr.icon} ${ctr.name}`:`${ctr.icon} ${ctr.name}`;
+    rowsHtml+=infoRow('📦','rgba(94,140,106,0.1)','Container',locLabel);
+  }
+  if(room)rowsHtml+=infoRow('🏠','rgba(124,99,80,0.08)','Room',`${room.icon} ${room.name}${fl?' · '+fl.emoji+' '+fl.label:''}`);
+  if(item.notes)rowsHtml+=infoRow('📝','rgba(75,110,160,0.1)','Notes',item.notes);
+
+  // Purchase rows
+  let purchaseRowsHtml='';
+  if(item.price)purchaseRowsHtml+=infoRow('💰','rgba(94,140,106,0.1)','Price',formatPrice(item.price,item.currency));
+  if(item.boughtFrom)purchaseRowsHtml+=infoRow('🛒','rgba(200,119,58,0.1)','Bought From',item.boughtFrom);
+  if(item.purchaseDate)purchaseRowsHtml+=infoRow('📅','rgba(75,110,160,0.1)','Purchase Date',item.purchaseDate);
+
+  document.getElementById('itemDetailContent').innerHTML=`
+    <div class="id-hero">
+      ${heroHtml}
+      <div class="id-hero-overlay"></div>
+      <div class="id-hero-info">
+        <div class="id-hero-name">${item.icon} ${item.name}</div>
+        <div class="id-hero-breadcrumb">${breadcrumbHtml}</div>
+      </div>
+    </div>
+    <div class="id-body">
+      ${rowsHtml?`<div class="id-section">${rowsHtml}</div>`:''}
+      ${purchaseRowsHtml?`
+        <div style="font-size:0.62rem;font-family:'DM Mono',monospace;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;padding:0 2px">Purchase Info</div>
+        <div class="id-section">${purchaseRowsHtml}</div>`:''}
+      <div class="id-actions">
+        <button class="id-btn-edit" onclick="openEditItemSheet('${item.id}')">✏️ Edit Item</button>
+        <button class="id-btn-delete" onclick="confirmDeleteItemFromDetail('${item.id}')">🗑️ Delete</button>
+      </div>
+    </div>`;
+}
+function infoRow(emoji, bg, label, value){
+  return `<div class="id-row">
+    <div class="id-row-icon" style="background:${bg}">${emoji}</div>
+    <div><div class="id-row-label">${label}</div><div class="id-row-value">${value}</div></div>
+  </div>`;
+}
+async function confirmDeleteItemFromDetail(itemId){
+  if(!confirm('Delete this item?'))return;
+  const item=items.find(i=>i.id===itemId);
+  const roomId=item?.roomId;
+  await deleteItem(itemId);
+  // Go back to room if we know it, else overview
+  if(roomId){currentRoomId=roomId;switchPage('roomDetail',{back:true});}
+  else switchPage('overview',{back:true});
+  snack('Item deleted');
 }
 
 // ── About page ─────────────────────────────────────────
@@ -1100,8 +1206,8 @@ function renderContainerCard(ctr, ctrItems, subCtrs, roomColor){
     const leftEl=item.photo
       ?`<img class="ir-thumb" src="${item.photo}" alt="${item.name}" onclick="openLightboxById('item','${item.id}')">`
       :`<span class="ir-emoji">${item.icon}</span>`;
-    return `<div class="item-row">${leftEl}<div class="ir-info"><div class="ir-name">${item.name}</div>${item.notes?`<div class="ir-note">${item.notes}</div>`:''}${item.price?`<div class="ir-note" style="color:var(--accent2)">💰 ${formatPrice(item.price,item.currency)}</div>`:''}</div>
-      <div class="ir-actions"><button class="ir-btn" onclick="openEditItemSheet('${item.id}')">Edit</button><button class="ir-btn danger" onclick="confirmDeleteItem('${item.id}')">✕</button></div>
+    return `<div class="item-row" onclick="openItemDetail('${item.id}')" style="cursor:pointer">${leftEl}<div class="ir-info"><div class="ir-name">${item.name}</div>${item.notes?`<div class="ir-note">${item.notes}</div>`:''}${item.price?`<div class="ir-note" style="color:var(--accent2)">💰 ${formatPrice(item.price,item.currency)}</div>`:''}</div>
+      <div class="ir-actions"><button class="ir-btn" onclick="event.stopPropagation();openEditItemSheet('${item.id}')">Edit</button><button class="ir-btn danger" onclick="event.stopPropagation();confirmDeleteItem('${item.id}')">✕</button></div>
     </div>`;
   }).join('');
 
@@ -1157,8 +1263,8 @@ function renderSubContainerCard(sub, subItems, parentColor){
     const leftEl=item.photo
       ?`<img class="ir-thumb" src="${item.photo}" alt="${item.name}" onclick="openLightboxById('item','${item.id}')">`
       :`<span class="ir-emoji">${item.icon}</span>`;
-    return `<div class="item-row" style="background:white">${leftEl}<div class="ir-info"><div class="ir-name">${item.name}</div>${item.notes?`<div class="ir-note">${item.notes}</div>`:''}${item.price?`<div class="ir-note" style="color:var(--accent2)">💰 ${formatPrice(item.price,item.currency)}</div>`:''}</div>
-      <div class="ir-actions"><button class="ir-btn" onclick="openEditItemSheet('${item.id}')">Edit</button><button class="ir-btn danger" onclick="confirmDeleteItem('${item.id}')">✕</button></div>
+    return `<div class="item-row" onclick="openItemDetail('${item.id}')" style="background:white;cursor:pointer">${leftEl}<div class="ir-info"><div class="ir-name">${item.name}</div>${item.notes?`<div class="ir-note">${item.notes}</div>`:''}${item.price?`<div class="ir-note" style="color:var(--accent2)">💰 ${formatPrice(item.price,item.currency)}</div>`:''}</div>
+      <div class="ir-actions"><button class="ir-btn" onclick="event.stopPropagation();openEditItemSheet('${item.id}')">Edit</button><button class="ir-btn danger" onclick="event.stopPropagation();confirmDeleteItem('${item.id}')">✕</button></div>
     </div>`;
   }).join('');
   return `<div class="sub-container-card" id="ccard-${sub.id}" style="--subctr-color:${c}">
@@ -1183,16 +1289,17 @@ function renderSubContainerCard(sub, subItems, parentColor){
 }
 
 function renderLooseItemCard(item,roomColor){
-  return `<div class="loose-item-card"><div class="lic-bar" style="background:${roomColor}"></div>
+  return `<div class="loose-item-card" onclick="openItemDetail('${item.id}')" style="cursor:pointer"><div class="lic-bar" style="background:${roomColor}"></div>
     <div class="lic-body">
-      ${item.photo?`<img class="lic-photo" src="${item.photo}" alt="${item.name}" onclick="openLightboxById('item','${item.id}')">`:'' }
+      ${item.photo?`<img class="lic-photo" src="${item.photo}" alt="${item.name}" onclick="event.stopPropagation();openLightboxById('item','${item.id}')">`:'' }
       <span class="lic-icon">${item.icon}</span>
       <div class="lic-name">${item.name}</div>
       ${item.location?`<div class="lic-loc">📍 ${item.location}</div>`:''}
       ${item.notes?`<div class="lic-notes">${item.notes}</div>`:''}
       ${purchaseInfoHtml(item)}
-        <button onclick="openEditItemSheet('${item.id}')">✏️ Edit</button>
-        <button class="danger" onclick="confirmDeleteItem('${item.id}')">🗑️ Remove</button>
+      <div class="lic-actions">
+        <button onclick="event.stopPropagation();openEditItemSheet('${item.id}')">✏️ Edit</button>
+        <button class="danger" onclick="event.stopPropagation();confirmDeleteItem('${item.id}')">🗑️ Remove</button>
       </div>
     </div>
   </div>`;
@@ -1604,7 +1711,10 @@ async function doUpdateItem(itemId){
   } else if(!sheetPhotoData){
     item.photo=null;
   }
-  await saveItem(item);closeSheet();renderRoomDetail(currentRoomId);snack('Item saved ✓');
+  await saveItem(item);closeSheet();
+  if(currentPage==='itemDetail')renderItemDetailPage(itemId);
+  else renderRoomDetail(currentRoomId);
+  snack('Item saved ✓');
 }
 
 // ── Edit container ─────────────────────────────────────
@@ -1675,30 +1785,14 @@ document.getElementById('searchInput').addEventListener('input',e=>{
 
 function gotoResult(roomId, type, id, containerId){
   closeSearch();
-  // Navigate to the room first
+  if(type==='item'){
+    openItemDetail(id);
+    return;
+  }
   openRoomDetail(roomId);
-  // After render, open the right container and scroll to the element
   setTimeout(()=>{
-    if(type==='room') return; // just show the room
-    // If item is inside a container, open the container first
-    if(type==='item' && containerId){
-      // Check if it's inside a sub-container (parentId set)
-      const ctr=containers.find(c=>c.id===containerId);
-      if(ctr?.parentId){
-        // Open parent container first, then the sub-container
-        document.getElementById('ccard-'+ctr.parentId)?.classList.add('open');
-        setTimeout(()=>{
-          document.getElementById('ccard-'+containerId)?.classList.add('open');
-          scrollAndHighlight('ccard-'+containerId);
-        },120);
-      } else {
-        document.getElementById('ccard-'+containerId)?.classList.add('open');
-        // Also expand direct items section if needed
-        const diBody=document.getElementById('cdi-body-'+containerId);
-        if(diBody) diBody.style.display='block';
-        scrollAndHighlight('ccard-'+containerId);
-      }
-    } else if(type==='container'){
+    if(type==='room') return;
+    if(type==='container'){
       const ctr=containers.find(c=>c.id===id);
       if(ctr?.parentId){
         document.getElementById('ccard-'+ctr.parentId)?.classList.add('open');
