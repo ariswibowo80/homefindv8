@@ -343,9 +343,9 @@ body{
 .pi-tag.price{background:rgba(94,140,106,0.12);color:var(--accent2);}
 .pi-tag.shop{background:rgba(124,99,80,0.10);color:var(--brown);}
 .pi-tag.date{background:rgba(75,110,160,0.10);color:#4B6EA0;}
-.price-row{display:flex;gap:8px;align-items:stretch;}
-.price-row select{width:58px;flex-shrink:0;padding:11px 4px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Mono',monospace;font-size:0.68rem;font-weight:700;color:var(--brown);outline:none;-webkit-appearance:none;appearance:none;text-align:center;}
-.price-row input{flex:1;min-width:0;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Sans',sans-serif;font-size:0.95rem;color:var(--dark);outline:none;-webkit-appearance:none;appearance:none;box-sizing:border-box;}
+.price-row{display:flex;flex-direction:column;gap:8px;}
+.price-row select{width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Mono',monospace;font-size:0.88rem;font-weight:700;color:var(--brown);outline:none;-webkit-appearance:none;appearance:none;}
+.price-row input{width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(124,99,80,0.2);background:white;font-family:'DM Sans',sans-serif;font-size:0.95rem;color:var(--dark);outline:none;-webkit-appearance:none;appearance:none;box-sizing:border-box;}
 .price-row input:focus{border-color:var(--accent);}
 
 /* ===== ITEM DETAIL PAGE ===== */
@@ -1072,10 +1072,10 @@ function formatPrice(price,currency){
 }
 function purchaseFieldsHtml(item={}){
   const curOpts=CURRENCIES.map(c=>`<option value="${c}"${(item.currency||'IDR')===c?' selected':''}>${c}</option>`).join('');
-  return `<div class="field"><label>Price (optional)</label>
+  return `<div class="field"><label>Currency</label>
     <div class="price-row">
-      <input type="number" id="sPrice" class="price-input" placeholder="e.g. 250000" value="${item.price||''}" min="0" inputmode="numeric">
       <select id="sCurrency">${curOpts}</select>
+      <input type="number" id="sPrice" placeholder="Price (optional, e.g. 250000)" value="${item.price||''}" min="0" inputmode="numeric">
     </div>
   </div>
   <div class="field"><label>Bought From (optional)</label>
