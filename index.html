@@ -1362,26 +1362,61 @@ function buildPieChart(catRows, field, total){
 }
 
 // ── Move item ──────────────────────────────────────────
-let moveItemId=null, moveTargetRoomId=null, moveTargetCtrId=null;
+let moveItemId=null, moveTargetRoomId=null, moveTargetCtrId=null, moveTargetHouseId=null;
+let allRoomsCache=[], allCtrsCache=[];
+
 function openMoveItemSheet(itemId){
   moveItemId=itemId;
   const item=items.find(i=>i.id===itemId);
   if(!item)return;
   moveTargetRoomId=item.roomId;
   moveTargetCtrId=item.containerId||null;
-  renderMoveSheet();
+  moveTargetHouseId=item.houseId||currentHouseId;
+  loadAllRoomsForMove().then(renderMoveSheet);
 }
+
+async function loadAllRoomsForMove(){
+  const uid=window._currentUser?.uid; if(!uid)return;
+  const {db,collection,getDocs}=window._fb;
+  const [rSnap,cSnap]=await Promise.all([
+    getDocs(collection(db,`users/${uid}/rooms`)),
+    getDocs(collection(db,`users/${uid}/containers`)),
+  ]);
+  allRoomsCache=rSnap.docs.map(d=>d.data());
+  allCtrsCache=cSnap.docs.map(d=>d.data());
+}
+
 function renderMoveSheet(){
   const item=items.find(i=>i.id===moveItemId);if(!item)return;
-  const roomOpts=rooms.map(r=>`
-    <div class="move-option${r.id===moveTargetRoomId?' selected':''}" onclick="selectMoveRoom('${r.id}')">
-      <span class="move-option-icon">${r.icon}</span>
-      <span class="move-option-name">${r.name}</span>
-    </div>`).join('');
-  const roomCtrs=containers.filter(c=>c.roomId===moveTargetRoomId&&!c.parentId);
-  const subCtrs=containers.filter(c=>c.roomId===moveTargetRoomId&&c.parentId);
-  const ctrOpts=`
-    <div class="move-option${!moveTargetCtrId?' selected':''}" onclick="selectMoveCtr(null)">
+  const roomsByHouse=houses.map(h=>({
+    house:h,
+    houseRooms:allRoomsCache.filter(r=>r.houseId===h.id||(h.id===currentHouseId&&!r.houseId))
+  })).filter(g=>g.houseRooms.length);
+
+  const roomOptsHtml=roomsByHouse.map(g=>`
+    <div style="font-size:0.62rem;font-family:'DM Mono',monospace;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;padding:10px 0 4px">${g.house.icon} ${g.house.name}</div>
+    ${g.houseRooms.map(r=>`
+      <div class="move-option${r.id===moveTargetRoomId?' selected':''}" onclick="selectMoveRoom('${r.id}','${g.house.id}')">
+        <span class="move-option-icon">${r.icon}</span>
+        <span class="move-option-name">${r.name}</span>
+      </div>`).join('')}`).join('');
+
+  openSheet(`<div class="sheet-title">Move Item</div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:4px">Moving: <strong>${item.icon} ${item.name}</strong></div>
+    <div class="move-section-title">Select Room</div>
+    <div id="moveRoomOpts">${roomOptsHtml}</div>
+    <div class="move-section-title">Select Container</div>
+    <div id="moveCtrOpts">${buildMoveCtrOpts(moveTargetRoomId)}</div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" onclick="closeSheet()">Cancel</button>
+      <button class="btn-primary" onclick="doMoveItem()">Move Here</button>
+    </div>`);
+}
+
+function buildMoveCtrOpts(roomId){
+  const roomCtrs=allCtrsCache.filter(c=>c.roomId===roomId&&!c.parentId);
+  const subCtrs=allCtrsCache.filter(c=>c.roomId===roomId&&c.parentId);
+  return `<div class="move-option${!moveTargetCtrId?' selected':''}" onclick="selectMoveCtr(null)">
       <span class="move-option-icon">🏠</span>
       <span class="move-option-name">No container (loose in room)</span>
     </div>`+
@@ -1396,46 +1431,19 @@ function renderMoveSheet(){
           <div><div class="move-option-name">${s.name}</div><div class="move-option-sub">inside ${c.icon} ${c.name}</div></div>
         </div>`).join('');
     }).join('');
-  openSheet(`<div class="sheet-title">Move Item</div>
-    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:4px">Moving: <strong>${item.icon} ${item.name}</strong></div>
-    <div class="move-section-title">Select Room</div>
-    <div id="moveRoomOpts">${roomOpts}</div>
-    <div class="move-section-title">Select Container</div>
-    <div id="moveCtrOpts">${ctrOpts}</div>
-    <div class="sheet-actions">
-      <button class="btn-ghost" onclick="closeSheet()">Cancel</button>
-      <button class="btn-primary" onclick="doMoveItem()">Move Here</button>
-    </div>`);
 }
-function selectMoveRoom(roomId){
+
+function selectMoveRoom(roomId, houseId){
   moveTargetRoomId=roomId;
+  moveTargetHouseId=houseId;
   moveTargetCtrId=null;
-  // Re-render just the room opts and ctr opts
   document.querySelectorAll('#moveRoomOpts .move-option').forEach(el=>{
-    el.classList.toggle('selected',el.getAttribute('onclick')===`selectMoveRoom('${roomId}')`);
+    el.classList.toggle('selected',el.getAttribute('onclick')===`selectMoveRoom('${roomId}','${houseId}')`);
   });
-  // Rebuild container list for new room
-  const roomCtrs=containers.filter(c=>c.roomId===roomId&&!c.parentId);
-  const subCtrs=containers.filter(c=>c.roomId===roomId&&c.parentId);
-  const ctrOpts=`
-    <div class="move-option selected" onclick="selectMoveCtr(null)">
-      <span class="move-option-icon">🏠</span>
-      <span class="move-option-name">No container (loose in room)</span>
-    </div>`+
-    roomCtrs.map(c=>{
-      const subs=subCtrs.filter(s=>s.parentId===c.id);
-      return `<div class="move-option" onclick="selectMoveCtr('${c.id}')">
-        <span class="move-option-icon">${c.icon}</span>
-        <div><div class="move-option-name">${c.name}</div>${c.location?`<div class="move-option-sub">📍 ${c.location}</div>`:''}</div>
-      </div>`+subs.map(s=>`
-        <div class="move-option" onclick="selectMoveCtr('${s.id}')" style="margin-left:16px">
-          <span class="move-option-icon">${s.icon}</span>
-          <div><div class="move-option-name">${s.name}</div><div class="move-option-sub">inside ${c.icon} ${c.name}</div></div>
-        </div>`).join('');
-    }).join('');
   const ctrEl=document.getElementById('moveCtrOpts');
-  if(ctrEl)ctrEl.innerHTML=ctrOpts;
+  if(ctrEl)ctrEl.innerHTML=buildMoveCtrOpts(roomId);
 }
+
 function selectMoveCtr(ctrId){
   moveTargetCtrId=ctrId;
   document.querySelectorAll('#moveCtrOpts .move-option').forEach(el=>{
@@ -1444,15 +1452,34 @@ function selectMoveCtr(ctrId){
       ctrId===null?onclick==="selectMoveCtr(null)":onclick===`selectMoveCtr('${ctrId}')`);
   });
 }
+
 async function doMoveItem(){
   const item=items.find(i=>i.id===moveItemId);if(!item)return;
+  const oldHouseId=item.houseId||currentHouseId;
+  const newHouseId=moveTargetHouseId||currentHouseId;
+
+  // Update item fields
   item.roomId=moveTargetRoomId;
   item.containerId=moveTargetCtrId||null;
+  item.houseId=newHouseId;
+
   await saveItem(item);
-  closeSheet();
-  renderItemDetailPage(moveItemId);
-  const dest=rooms.find(r=>r.id===moveTargetRoomId);
-  snack(`Moved to ${dest?dest.icon+' '+dest.name:'new location'} ✓`);
+
+  if(oldHouseId!==newHouseId){
+    // Remove from current house local array
+    items=items.filter(i=>i.id!==moveItemId);
+    closeSheet();
+    // Switch to destination house so user sees the item
+    currentHouseId=newHouseId;
+    const uid=window._currentUser?.uid;
+    await loadHouseData(uid, newHouseId);
+    snack(`Moved to ${houses.find(h=>h.id===newHouseId)?.name||'new house'} ✓`);
+  } else {
+    closeSheet();
+    renderItemDetailPage(moveItemId);
+    const dest=rooms.find(r=>r.id===moveTargetRoomId);
+    snack(`Moved to ${dest?dest.icon+' '+dest.name:'new location'} ✓`);
+  }
 }
 function renderAboutPage(){
   const totalRooms=rooms.length;
