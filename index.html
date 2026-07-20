@@ -1481,6 +1481,118 @@ async function doMoveItem(){
     snack(`Moved to ${dest?dest.icon+' '+dest.name:'new location'} ✓`);
   }
 }
+// ── Move container ─────────────────────────────────────
+let moveCtrId=null, moveCtrTargetRoomId=null, moveCtrTargetHouseId=null, moveCtrTargetParentId=null;
+
+function openMoveContainerSheet(ctrId){
+  moveCtrId=ctrId;
+  const ctr=containers.find(c=>c.id===ctrId);
+  if(!ctr)return;
+  moveCtrTargetRoomId=ctr.roomId;
+  moveCtrTargetHouseId=ctr.houseId||currentHouseId;
+  moveCtrTargetParentId=null; // always becomes top-level in new room
+  loadAllRoomsForMove().then(renderMoveContainerSheet);
+}
+
+function renderMoveContainerSheet(){
+  const ctr=containers.find(c=>c.id===moveCtrId);if(!ctr)return;
+  // Count what's inside
+  const subCtrsInside=containers.filter(c=>c.parentId===moveCtrId);
+  const itemsInside=items.filter(i=>i.containerId===moveCtrId);
+  const subItemsCount=subCtrsInside.reduce((n,s)=>n+items.filter(i=>i.containerId===s.id).length,0);
+  const totalItems=itemsInside.length+subItemsCount;
+
+  const roomsByHouse=houses.map(h=>({
+    house:h,
+    houseRooms:allRoomsCache.filter(r=>r.houseId===h.id||(h.id===currentHouseId&&!r.houseId))
+  })).filter(g=>g.houseRooms.length);
+
+  const roomOptsHtml=roomsByHouse.map(g=>`
+    <div style="font-size:0.62rem;font-family:'DM Mono',monospace;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;padding:10px 0 4px">${g.house.icon} ${g.house.name}</div>
+    ${g.houseRooms.map(r=>`
+      <div class="move-option${r.id===moveCtrTargetRoomId?' selected':''}" onclick="selectMoveCtrRoom('${r.id}','${g.house.id}')">
+        <span class="move-option-icon">${r.icon}</span>
+        <span class="move-option-name">${r.name}</span>
+      </div>`).join('')}`).join('');
+
+  openSheet(`<div class="sheet-title">Move Container</div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:12px">
+      Moving <strong>${ctr.icon} ${ctr.name}</strong>
+      ${subCtrsInside.length?`<br><span style="font-size:0.75rem">Includes ${subCtrsInside.length} sub-container${subCtrsInside.length>1?'s':''} · </span>`:''}
+      <span style="font-size:0.75rem">${totalItems} item${totalItems!==1?'s':''}</span>
+    </div>
+    <div class="move-section-title">Select Destination Room</div>
+    <div id="moveCtrRoomOpts">${roomOptsHtml}</div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" onclick="closeSheet()">Cancel</button>
+      <button class="btn-primary" onclick="doMoveContainer()">Move All Here</button>
+    </div>`);
+}
+
+function selectMoveCtrRoom(roomId, houseId){
+  moveCtrTargetRoomId=roomId;
+  moveCtrTargetHouseId=houseId;
+  document.querySelectorAll('#moveCtrRoomOpts .move-option').forEach(el=>{
+    el.classList.toggle('selected',el.getAttribute('onclick')===`selectMoveCtrRoom('${roomId}','${houseId}')`);
+  });
+}
+
+async function doMoveContainer(){
+  const ctr=containers.find(c=>c.id===moveCtrId);if(!ctr)return;
+  const newHouseId=moveCtrTargetHouseId||currentHouseId;
+  const newRoomId=moveCtrTargetRoomId;
+  const uid=window._currentUser?.uid;
+
+  // Collect everything to move: the container itself + sub-containers + all items
+  const subCtrsInside=containers.filter(c=>c.parentId===moveCtrId);
+  const allCtrIds=[moveCtrId,...subCtrsInside.map(c=>c.id)];
+  const allItemsInside=items.filter(i=>allCtrIds.includes(i.containerId));
+
+  const {db,collection,doc,writeBatch}=window._fb;
+  const batch=writeBatch(db);
+
+  // Update the main container
+  ctr.roomId=newRoomId;
+  ctr.houseId=newHouseId;
+  ctr.parentId=null; // always top-level in destination
+  batch.set(doc(collection(db,`users/${uid}/containers`),ctr.id),ctr);
+
+  // Update sub-containers
+  subCtrsInside.forEach(sub=>{
+    sub.roomId=newRoomId;
+    sub.houseId=newHouseId;
+    batch.set(doc(collection(db,`users/${uid}/containers`),sub.id),sub);
+  });
+
+  // Update all items inside
+  allItemsInside.forEach(item=>{
+    item.roomId=newRoomId;
+    item.houseId=newHouseId;
+    batch.set(doc(collection(db,`users/${uid}/items`),item.id),item);
+  });
+
+  await batch.commit();
+
+  const movedToOtherHouse=newHouseId!==currentHouseId;
+  closeSheet();
+
+  if(movedToOtherHouse){
+    // Remove moved items from local arrays
+    const allMovedIds=new Set(allCtrIds);
+    const allMovedItemIds=new Set(allItemsInside.map(i=>i.id));
+    containers=containers.filter(c=>!allMovedIds.has(c.id));
+    items=items.filter(i=>!allMovedItemIds.has(i.id));
+    // Switch to destination house
+    currentHouseId=newHouseId;
+    await loadHouseData(uid, newHouseId);
+    snack(`Container moved to ${houses.find(h=>h.id===newHouseId)?.name} ✓`);
+  } else {
+    // Same house, just refresh current room
+    renderRoomDetail(currentRoomId);
+    snack(`Moved to ${rooms.find(r=>r.id===newRoomId)?.name||'new room'} ✓`);
+  }
+}
+
 function renderAboutPage(){
   const totalRooms=rooms.length;
   const totalCtrs=containers.length;
@@ -1726,6 +1838,7 @@ function renderContainerCard(ctr, ctrItems, subCtrs, roomColor){
       </div>
       <div class="ctr-footer-btns">
         <button onclick="openEditContainerSheet('${ctr.id}')">✏️ Edit</button>
+        <button onclick="openMoveContainerSheet('${ctr.id}')">📦 Move</button>
         <button class="danger" onclick="confirmDeleteContainer('${ctr.id}')">🗑️ Delete</button>
       </div>
     </div>
@@ -1760,6 +1873,7 @@ function renderSubContainerCard(sub, subItems, parentColor){
       <button class="ctr-add-btn" onclick="openAddCtrItemSheet('${sub.id}')" style="margin-top:6px">＋ Add item here</button>
       <div class="subctr-footer-btns">
         <button onclick="openEditContainerSheet('${sub.id}')">✏️ Edit</button>
+        <button onclick="openMoveContainerSheet('${sub.id}')">📦 Move</button>
         <button class="danger" onclick="confirmDeleteContainer('${sub.id}')">🗑️ Delete</button>
       </div>
     </div>
