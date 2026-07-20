@@ -154,6 +154,17 @@ body{
 }
 .um-item:active{background:var(--cream);}
 .um-item.danger{color:#c0392b;}
+.um-house-row{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:1px solid rgba(124,99,80,0.06);transition:background 0.12s;}
+.um-house-row:active{background:var(--cream);}
+.um-house-row.active{background:rgba(200,119,58,0.07);}
+.um-house-icon{font-size:1.2rem;flex-shrink:0;}
+.um-house-name{font-size:0.85rem;font-weight:600;color:var(--dark);flex:1;}
+.um-house-check{font-size:0.9rem;color:var(--accent);}
+.um-house-edit{font-size:0.75rem;color:var(--muted);padding:2px 6px;border-radius:6px;border:1px solid rgba(124,99,80,0.2);background:none;cursor:pointer;}
+
+/* ===== HOUSE BADGE IN TOP BAR ===== */
+#btnHouse{background:none;border:none;font-size:1.1rem;cursor:pointer;padding:6px;border-radius:8px;}
+#btnHouse:active{background:rgba(255,255,255,0.1);}
 
 /* ===== SEARCH ===== */
 #searchOverlay{
@@ -397,7 +408,17 @@ body{
 .id-row-value{font-size:0.88rem;font-weight:600;color:var(--dark);line-height:1.4;}
 .id-actions{display:flex;gap:10px;padding:16px 16px 32px;}
 .id-btn-edit{flex:2;padding:13px;background:var(--accent);color:white;border:none;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;}
-.id-btn-delete{flex:1;padding:13px;background:transparent;border:1.5px solid rgba(192,57,43,0.35);border-radius:50px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:#c0392b;cursor:pointer;}
+.id-btn-move{flex:1;padding:13px;background:var(--dark);color:white;border:none;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;}
+.id-btn-delete{width:46px;height:46px;padding:0;background:transparent;border:1.5px solid rgba(192,57,43,0.35);border-radius:50%;font-size:1rem;color:#c0392b;cursor:pointer;flex-shrink:0;}
+
+/* ===== MOVE ITEM SHEET ===== */
+.move-section-title{font-size:0.62rem;font-family:'DM Mono',monospace;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:16px 0 8px;}
+.move-option{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;cursor:pointer;border:1.5px solid rgba(124,99,80,0.12);margin-bottom:6px;transition:border-color 0.15s,background 0.15s;}
+.move-option:active{background:rgba(124,99,80,0.05);}
+.move-option.selected{border-color:var(--accent);background:rgba(200,119,58,0.06);}
+.move-option-icon{font-size:1.2rem;flex-shrink:0;}
+.move-option-name{font-size:0.85rem;font-weight:600;color:var(--dark);flex:1;}
+.move-option-sub{font-size:0.7rem;color:var(--muted);}
 
 /* ===== ABOUT PAGE ===== */
 .about-hero{background:var(--dark);padding:48px 24px 36px;display:flex;flex-direction:column;align-items:center;text-align:center;}
@@ -578,7 +599,8 @@ body{
 <div id="topBar">
   <button id="btnBack" onclick="goBack()">←</button>
   <div id="topBarTitle">Home<span>Find</span></div>
-  <div id="appVersion">v13</div>
+  <div id="appVersion">v14</div>
+  <button id="btnHouse" onclick="openUserMenu()" title="Switch house" style="display:none">🏠</button>
   <button id="btnSearch" onclick="openSearch()">🔍</button>
   <img id="userAvatar" src="" alt="profile" onclick="toggleUserMenu()">
 </div>
@@ -592,6 +614,10 @@ body{
       <div class="um-email" id="menuEmail"></div>
     </div>
   </div>
+  <div style="padding:8px 12px 4px;font-size:0.62rem;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--muted);text-transform:uppercase">My Houses</div>
+  <div id="umHouseList"></div>
+  <button class="um-item" onclick="closeUserMenu();openAddHouseSheet()">＋ Add House</button>
+  <div style="height:1px;background:rgba(124,99,80,0.1);margin:8px 0"></div>
   <button class="um-item" onclick="closeUserMenu()">✕ Close</button>
   <button class="um-item danger" onclick="signOut()">Sign Out</button>
 </div>
@@ -745,7 +771,8 @@ const FLOORS=[
 
 // ── Data ──────────────────────────────────────────────
 let rooms=[], containers=[], items=[];
-let currentPage='overview', prevPage=null, currentRoomId=null, currentItemId=null, currentFpFloor='1';
+let currentPage='overview', prevPage=null, currentRoomId=null, currentItemId=null, currentFpFloor='1', currentHouseId=null;
+let houses=[];
 const PAGES={overview:'overviewPage',items:'itemsPage',roomDetail:'roomDetailPage',floorPlan:'floorPlanPage',about:'aboutPage',itemDetail:'itemDetailPage',dashboard:'dashboardPage'};
 
 // ── Auth UI ───────────────────────────────────────────
@@ -806,19 +833,21 @@ document.addEventListener('click', e=>{
 async function loadFromFirestore(uid){
   const {db, collection, getDocs} = window._fb;
   try{
-    const [rSnap, cSnap, iSnap] = await Promise.all([
-      getDocs(collection(db,`users/${uid}/rooms`)),
-      getDocs(collection(db,`users/${uid}/containers`)),
-      getDocs(collection(db,`users/${uid}/items`)),
-    ]);
-    rooms      = rSnap.docs.map(d=>d.data());
-    containers = cSnap.docs.map(d=>d.data());
-    items      = iSnap.docs.map(d=>d.data());
+    // Load houses first
+    const hSnap = await getDocs(collection(db,`users/${uid}/houses`));
+    houses = hSnap.docs.map(d=>d.data());
+    if(!houses.length){
+      // Create default house for existing users
+      const defaultHouse={id:'h1',name:'My Home',icon:'🏠',createdAt:Date.now()};
+      houses=[defaultHouse];
+      await saveHouse(defaultHouse);
+    }
+    // Pick current house
+    if(!currentHouseId||!houses.find(h=>h.id===currentHouseId))
+      currentHouseId=houses[0].id;
 
-    // Seed if first time
-    if(!rooms.length) await seedToFirestore(uid);
+    await loadHouseData(uid, currentHouseId);
 
-    renderOverview();
     history.pushState(null,'',location.href);
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('sw.js').then(reg=>{
@@ -840,6 +869,130 @@ async function loadFromFirestore(uid){
     snack('Error loading data');
     console.error(e);
   }
+}
+
+async function loadHouseData(uid, houseId){
+  const {db, collection, getDocs, query, where} = window._fb;
+  const [rSnap, cSnap, iSnap] = await Promise.all([
+    getDocs(collection(db,`users/${uid}/rooms`)),
+    getDocs(collection(db,`users/${uid}/containers`)),
+    getDocs(collection(db,`users/${uid}/items`)),
+  ]);
+  // Filter by houseId — fall back to no houseId for legacy data (existing users)
+  const allRooms=rSnap.docs.map(d=>d.data());
+  const allCtrs=cSnap.docs.map(d=>d.data());
+  const allItems=iSnap.docs.map(d=>d.data());
+
+  // Legacy migration: assign houseId to docs that don't have one
+  const legacyRooms=allRooms.filter(r=>!r.houseId);
+  if(legacyRooms.length){
+    legacyRooms.forEach(r=>r.houseId=houseId);
+    allCtrs.filter(c=>!c.houseId).forEach(c=>c.houseId=houseId);
+    allItems.filter(i=>!i.houseId).forEach(i=>i.houseId=houseId);
+    // Save migration
+    const {writeBatch, doc} = window._fb;
+    const batch=writeBatch(db);
+    legacyRooms.forEach(r=>batch.set(doc(collection(db,`users/${uid}/rooms`),r.id),r));
+    allCtrs.filter(c=>c.houseId===houseId).forEach(c=>batch.set(doc(collection(db,`users/${uid}/containers`),c.id),c));
+    allItems.filter(i=>i.houseId===houseId).forEach(i=>batch.set(doc(collection(db,`users/${uid}/items`),i.id),i));
+    await batch.commit();
+  }
+
+  rooms   = allRooms.filter(r=>r.houseId===houseId);
+  containers = allCtrs.filter(c=>c.houseId===houseId);
+  items   = allItems.filter(i=>i.houseId===houseId);
+
+  if(!rooms.length && houses.length===1) await seedToFirestore(uid);
+
+  updateHouseUI();
+  renderOverview();
+}
+
+async function saveHouse(house){
+  const uid=window._currentUser?.uid; if(!uid)return;
+  const {db,collection,doc,setDoc}=window._fb;
+  await setDoc(doc(collection(db,`users/${uid}/houses`),house.id),house);
+}
+async function deleteHouse(houseId){
+  if(houses.length<=1){snack('Cannot delete your only house');return;}
+  if(!confirm('Delete this house and ALL its rooms, containers, and items?'))return;
+  const uid=window._currentUser?.uid; if(!uid)return;
+  const {db,collection,doc,writeBatch}=window._fb;
+  const batch=writeBatch(db);
+  batch.delete(doc(collection(db,`users/${uid}/houses`),houseId));
+  rooms.filter(r=>r.houseId===houseId).forEach(r=>batch.delete(doc(collection(db,`users/${uid}/rooms`),r.id)));
+  containers.filter(c=>c.houseId===houseId).forEach(c=>batch.delete(doc(collection(db,`users/${uid}/containers`),c.id)));
+  items.filter(i=>i.houseId===houseId).forEach(i=>batch.delete(doc(collection(db,`users/${uid}/items`),i.id)));
+  await batch.commit();
+  houses=houses.filter(h=>h.id!==houseId);
+  if(currentHouseId===houseId) currentHouseId=houses[0].id;
+  await loadHouseData(uid, currentHouseId);
+  closeUserMenu();
+}
+async function switchHouse(houseId){
+  if(houseId===currentHouseId){closeUserMenu();return;}
+  currentHouseId=houseId;
+  const uid=window._currentUser?.uid; if(!uid)return;
+  switchPage('overview');
+  await loadHouseData(uid, houseId);
+  closeUserMenu();
+  snack('Switched to '+houses.find(h=>h.id===houseId)?.name);
+}
+function updateHouseUI(){
+  const house=houses.find(h=>h.id===currentHouseId);
+  // Show house icon button in top bar if >1 house
+  const btnHouse=document.getElementById('btnHouse');
+  if(btnHouse) btnHouse.style.display=houses.length>1?'flex':'none';
+  // Update house list in user menu
+  const ul=document.getElementById('umHouseList');
+  if(ul) ul.innerHTML=houses.map(h=>`
+    <div class="um-house-row${h.id===currentHouseId?' active':''}" onclick="switchHouse('${h.id}')">
+      <span class="um-house-icon">${h.icon}</span>
+      <span class="um-house-name">${h.name}</span>
+      ${h.id===currentHouseId?'<span class="um-house-check">✓</span>':''}
+      <button class="um-house-edit" onclick="event.stopPropagation();closeUserMenu();openEditHouseSheet('${h.id}')">✏️</button>
+    </div>`).join('');
+  // Update overview header to show current house name
+  if(house&&houses.length>1){
+    const el=document.getElementById('currentHouseName');
+    if(el)el.textContent=house.icon+' '+house.name;
+  }
+}
+function openAddHouseSheet(){
+  openSheet(`<div class="sheet-title">Add House</div>
+    <div class="field"><label>House Name</label><input type="text" id="sHouseName" placeholder="e.g. Home, Office, Parents' House…"></div>
+    <div class="field"><label>Icon</label>${emojiPickerHtml(['🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','🗼','🏗️','🛖','⛺','🏕️'],['🏠'][0],'houseEmojiPicker')}</div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" onclick="closeSheet()">Cancel</button>
+      <button class="btn-primary" onclick="doSaveHouse()">＋ Add House</button>
+    </div>`);
+}
+async function doSaveHouse(){
+  const name=document.getElementById('sHouseName')?.value.trim();
+  if(!name){snack('Enter a house name');return;}
+  const house={id:'h'+Date.now(),name,icon:selectedEmoji||'🏠',createdAt:Date.now()};
+  houses.push(house);
+  await saveHouse(house);
+  closeSheet();
+  updateHouseUI();
+  snack('House added ✓');
+}
+function openEditHouseSheet(houseId){
+  const house=houses.find(h=>h.id===houseId);if(!house)return;
+  openSheet(`<div class="sheet-title">Edit House</div>
+    <div class="field"><label>House Name</label><input type="text" id="sHouseName" value="${house.name}"></div>
+    <div class="field"><label>Icon</label>${emojiPickerHtml(['🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','🗼','🏗️','🛖','⛺','🏕️'],house.icon,'houseEmojiPicker')}</div>
+    <div class="sheet-actions">
+      <button class="btn-ghost danger" onclick="deleteHouse('${houseId}')">🗑️ Delete House</button>
+      <button class="btn-primary" onclick="doUpdateHouse('${houseId}')">Save</button>
+    </div>`);
+}
+async function doUpdateHouse(houseId){
+  const house=houses.find(h=>h.id===houseId);if(!house)return;
+  house.name=document.getElementById('sHouseName')?.value.trim()||house.name;
+  house.icon=selectedEmoji||house.icon;
+  await saveHouse(house);
+  closeSheet();updateHouseUI();snack('House updated ✓');
 }
 
 async function seedToFirestore(uid){
@@ -870,9 +1023,9 @@ async function saveAllToFirestore(){
   const uid = window._currentUser?.uid; if(!uid) return;
   const {db, collection, doc, setDoc, writeBatch} = window._fb;
   const batch = writeBatch(db);
-  rooms.forEach(r=>batch.set(doc(collection(db,`users/${uid}/rooms`),r.id),r));
-  containers.forEach(c=>batch.set(doc(collection(db,`users/${uid}/containers`),c.id),c));
-  items.forEach(i=>batch.set(doc(collection(db,`users/${uid}/items`),i.id),i));
+  rooms.forEach(r=>{r.houseId=r.houseId||currentHouseId;batch.set(doc(collection(db,`users/${uid}/rooms`),r.id),r);});
+  containers.forEach(c=>{c.houseId=c.houseId||currentHouseId;batch.set(doc(collection(db,`users/${uid}/containers`),c.id),c);});
+  items.forEach(i=>{i.houseId=i.houseId||currentHouseId;batch.set(doc(collection(db,`users/${uid}/items`),i.id),i);});
   await batch.commit();
 }
 
@@ -1061,7 +1214,8 @@ function renderItemDetailPage(itemId){
         <div class="id-section">${purchaseRowsHtml}</div>`:''}
       <div class="id-actions">
         <button class="id-btn-edit" onclick="openEditItemSheet('${item.id}')">✏️ Edit Item</button>
-        <button class="id-btn-delete" onclick="confirmDeleteItemFromDetail('${item.id}')">🗑️ Delete</button>
+        <button class="id-btn-move" onclick="openMoveItemSheet('${item.id}')">📦 Move</button>
+        <button class="id-btn-delete" onclick="confirmDeleteItemFromDetail('${item.id}')">🗑️</button>
       </div>
     </div>`;
 }
@@ -1207,7 +1361,99 @@ function buildPieChart(catRows, field, total){
   return `<svg class="dash-pie-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${slices}${centerLabel}</svg>`;
 }
 
-// ── About page ─────────────────────────────────────────
+// ── Move item ──────────────────────────────────────────
+let moveItemId=null, moveTargetRoomId=null, moveTargetCtrId=null;
+function openMoveItemSheet(itemId){
+  moveItemId=itemId;
+  const item=items.find(i=>i.id===itemId);
+  if(!item)return;
+  moveTargetRoomId=item.roomId;
+  moveTargetCtrId=item.containerId||null;
+  renderMoveSheet();
+}
+function renderMoveSheet(){
+  const item=items.find(i=>i.id===moveItemId);if(!item)return;
+  const roomOpts=rooms.map(r=>`
+    <div class="move-option${r.id===moveTargetRoomId?' selected':''}" onclick="selectMoveRoom('${r.id}')">
+      <span class="move-option-icon">${r.icon}</span>
+      <span class="move-option-name">${r.name}</span>
+    </div>`).join('');
+  const roomCtrs=containers.filter(c=>c.roomId===moveTargetRoomId&&!c.parentId);
+  const subCtrs=containers.filter(c=>c.roomId===moveTargetRoomId&&c.parentId);
+  const ctrOpts=`
+    <div class="move-option${!moveTargetCtrId?' selected':''}" onclick="selectMoveCtr(null)">
+      <span class="move-option-icon">🏠</span>
+      <span class="move-option-name">No container (loose in room)</span>
+    </div>`+
+    roomCtrs.map(c=>{
+      const subs=subCtrs.filter(s=>s.parentId===c.id);
+      return `<div class="move-option${moveTargetCtrId===c.id?' selected':''}" onclick="selectMoveCtr('${c.id}')">
+        <span class="move-option-icon">${c.icon}</span>
+        <div><div class="move-option-name">${c.name}</div>${c.location?`<div class="move-option-sub">📍 ${c.location}</div>`:''}</div>
+      </div>`+subs.map(s=>`
+        <div class="move-option${moveTargetCtrId===s.id?' selected':''}" onclick="selectMoveCtr('${s.id}')" style="margin-left:16px">
+          <span class="move-option-icon">${s.icon}</span>
+          <div><div class="move-option-name">${s.name}</div><div class="move-option-sub">inside ${c.icon} ${c.name}</div></div>
+        </div>`).join('');
+    }).join('');
+  openSheet(`<div class="sheet-title">Move Item</div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:4px">Moving: <strong>${item.icon} ${item.name}</strong></div>
+    <div class="move-section-title">Select Room</div>
+    <div id="moveRoomOpts">${roomOpts}</div>
+    <div class="move-section-title">Select Container</div>
+    <div id="moveCtrOpts">${ctrOpts}</div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" onclick="closeSheet()">Cancel</button>
+      <button class="btn-primary" onclick="doMoveItem()">Move Here</button>
+    </div>`);
+}
+function selectMoveRoom(roomId){
+  moveTargetRoomId=roomId;
+  moveTargetCtrId=null;
+  // Re-render just the room opts and ctr opts
+  document.querySelectorAll('#moveRoomOpts .move-option').forEach(el=>{
+    el.classList.toggle('selected',el.getAttribute('onclick')===`selectMoveRoom('${roomId}')`);
+  });
+  // Rebuild container list for new room
+  const roomCtrs=containers.filter(c=>c.roomId===roomId&&!c.parentId);
+  const subCtrs=containers.filter(c=>c.roomId===roomId&&c.parentId);
+  const ctrOpts=`
+    <div class="move-option selected" onclick="selectMoveCtr(null)">
+      <span class="move-option-icon">🏠</span>
+      <span class="move-option-name">No container (loose in room)</span>
+    </div>`+
+    roomCtrs.map(c=>{
+      const subs=subCtrs.filter(s=>s.parentId===c.id);
+      return `<div class="move-option" onclick="selectMoveCtr('${c.id}')">
+        <span class="move-option-icon">${c.icon}</span>
+        <div><div class="move-option-name">${c.name}</div>${c.location?`<div class="move-option-sub">📍 ${c.location}</div>`:''}</div>
+      </div>`+subs.map(s=>`
+        <div class="move-option" onclick="selectMoveCtr('${s.id}')" style="margin-left:16px">
+          <span class="move-option-icon">${s.icon}</span>
+          <div><div class="move-option-name">${s.name}</div><div class="move-option-sub">inside ${c.icon} ${c.name}</div></div>
+        </div>`).join('');
+    }).join('');
+  const ctrEl=document.getElementById('moveCtrOpts');
+  if(ctrEl)ctrEl.innerHTML=ctrOpts;
+}
+function selectMoveCtr(ctrId){
+  moveTargetCtrId=ctrId;
+  document.querySelectorAll('#moveCtrOpts .move-option').forEach(el=>{
+    const onclick=el.getAttribute('onclick');
+    el.classList.toggle('selected',
+      ctrId===null?onclick==="selectMoveCtr(null)":onclick===`selectMoveCtr('${ctrId}')`);
+  });
+}
+async function doMoveItem(){
+  const item=items.find(i=>i.id===moveItemId);if(!item)return;
+  item.roomId=moveTargetRoomId;
+  item.containerId=moveTargetCtrId||null;
+  await saveItem(item);
+  closeSheet();
+  renderItemDetailPage(moveItemId);
+  const dest=rooms.find(r=>r.id===moveTargetRoomId);
+  snack(`Moved to ${dest?dest.icon+' '+dest.name:'new location'} ✓`);
+}
 function renderAboutPage(){
   const totalRooms=rooms.length;
   const totalCtrs=containers.length;
@@ -1785,7 +2031,7 @@ async function doSaveRoom(){
   if(!name){snack('Please enter a room name');return;}
   const flRooms=rooms.filter(r=>r.floor===selectedFloor);
   const maxX=flRooms.reduce((m,r)=>Math.max(m,r.fx+r.fw),20);
-  const room={id:'r'+Date.now(),name,icon:selectedEmoji||ROOM_EMOJIS[0],color:ROOM_COLORS[rooms.length%ROOM_COLORS.length],floor:selectedFloor,fx:Math.min(maxX+12,460),fy:20,fw:220,fh:175};
+  const room={id:'r'+Date.now(),name,icon:selectedEmoji||ROOM_EMOJIS[0],color:ROOM_COLORS[rooms.length%ROOM_COLORS.length],floor:selectedFloor,houseId:currentHouseId,fx:Math.min(maxX+12,460),fy:20,fw:220,fh:175};
   rooms.push(room);await saveRoom(room);closeSheet();refresh();snack('Room added ✓');
 }
 
@@ -1850,10 +2096,10 @@ async function doSaveThing(){
   const photoUrl=resolvePhoto(sheetPhotoData);
   const purchase=addThingType==='item'?readPurchaseFields():{};
   if(addThingType==='container'){
-    const ctr={id:'c'+Date.now(),roomId:addThingRoomId,name,icon:selectedEmoji||CTR_EMOJIS[0],color:CTR_COLORS[containers.length%CTR_COLORS.length],location:loc,notes,photo:photoUrl};
+    const ctr={id:'c'+Date.now(),roomId:addThingRoomId,houseId:currentHouseId,name,icon:selectedEmoji||CTR_EMOJIS[0],color:CTR_COLORS[containers.length%CTR_COLORS.length],location:loc,notes,photo:photoUrl};
     containers.push(ctr);await saveContainer(ctr);
   } else {
-    const item={id:'i'+Date.now(),roomId:addThingRoomId,containerId:null,name,icon:selectedEmoji||ITEM_EMOJIS[0],location:loc,notes,photo:photoUrl,...purchase};
+    const item={id:'i'+Date.now(),roomId:addThingRoomId,houseId:currentHouseId,containerId:null,name,icon:selectedEmoji||ITEM_EMOJIS[0],location:loc,notes,photo:photoUrl,...purchase};
     items.push(item);await saveItem(item);
   }
   closeSheet();if(currentRoomId===addThingRoomId)renderRoomDetail(addThingRoomId);else refresh();
@@ -1877,7 +2123,7 @@ async function doSaveCtrItem(){
   if(!name){snack('Please enter a name');return;}
   const notes=document.getElementById('sCtrItemNotes')?.value.trim()||'';
   const ctr=containers.find(c=>c.id===addCtrItemCtrId);if(!ctr)return;
-  const item={id:'i'+Date.now(),roomId:ctr.roomId,containerId:addCtrItemCtrId,name,icon:selectedEmoji||ITEM_EMOJIS[0],location:'',notes,photo:resolvePhoto(sheetPhotoData),...readPurchaseFields()};
+  const item={id:'i'+Date.now(),roomId:ctr.roomId,houseId:currentHouseId,containerId:addCtrItemCtrId,name,icon:selectedEmoji||ITEM_EMOJIS[0],location:'',notes,photo:resolvePhoto(sheetPhotoData),...readPurchaseFields()};
   items.push(item);await saveItem(item);
   closeSheet();renderRoomDetail(currentRoomId);
   setTimeout(()=>document.getElementById('ccard-'+addCtrItemCtrId)?.classList.add('open'),80);
@@ -1907,7 +2153,7 @@ async function doSaveSubContainer(){
   const notes=document.getElementById('sSubCtrNotes')?.value.trim()||'';
   const loc=document.getElementById('sSubCtrLoc')?.value.trim()||'';
   const photoUrl=resolvePhoto(sheetPhotoData);
-  const sub={id:'c'+Date.now(),roomId:parent.roomId,parentId:addSubCtrParentId,name,
+  const sub={id:'c'+Date.now(),roomId:parent.roomId,houseId:currentHouseId,parentId:addSubCtrParentId,name,
     icon:selectedEmoji||CTR_EMOJIS[0],color:CTR_COLORS[containers.length%CTR_COLORS.length],
     location:loc,notes,photo:photoUrl};
   containers.push(sub);await saveContainer(sub);
